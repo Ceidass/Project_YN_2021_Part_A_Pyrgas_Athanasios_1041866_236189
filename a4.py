@@ -145,78 +145,80 @@ kf = KFold(n_splits=5, shuffle=False, random_state=None)
 # Function for testing number of first hidden layer nodes
 def fit_test(hidden_nodes=vocablen, lr=0.001, m=0.0, bs=100, epochs_num=100, r=0, plot=[("loss","val_loss")]):  
   
-  # Arrays for storing loss sum, accuracy sum and MSE sum of all five training iterations
-  loss_sum = np.zeros(epochs_num)
-  val_loss_sum = np.zeros(epochs_num)
-  acc_sum = np.zeros(epochs_num)
-  val_acc_sum = np.zeros(epochs_num)
-  mse_sum = np.zeros(epochs_num)
-  val_mse_sum = np.zeros(epochs_num)
+    # Arrays for storing loss sum, accuracy sum and MSE sum of all five training iterations
+    loss_sum = np.zeros(epochs_num)
+    val_loss_sum = np.zeros(epochs_num)
+    acc_sum = np.zeros(epochs_num)
+    val_acc_sum = np.zeros(epochs_num)
+    mse_sum = np.zeros(epochs_num)
+    val_mse_sum = np.zeros(epochs_num)
   
-  # Dictionary for calling arrays with Keras known names
-  arr_dict ={
-      "loss" : loss_sum,
-      "val_loss" : val_loss_sum,
-      "accuracy" : acc_sum,
-      "val_accuracy" : val_acc_sum,
-      "mean_squared_error" : mse_sum,
-      "val_mean_squared_error" : val_mse_sum
-  }
+    # Dictionary for calling arrays with Keras known names
+    arr_dict ={
+        "loss" : loss_sum,
+        "val_loss" : val_loss_sum,
+        "accuracy" : acc_sum,
+        "val_accuracy" : val_acc_sum,
+        "mean_squared_error" : mse_sum,
+        "val_mean_squared_error" : val_mse_sum
+    }
 
-  #Define model object
-  model = None
+    #Define model object
+    model = None
 
-  for i,(trn,tst) in enumerate(kf.split(train_set)):
-      # Create model
-      model = Sequential()
+    for i,(trn,tst) in enumerate(kf.split(train_set)):
+        # Create model
+        model = Sequential()
 
-      model.add(Dense(hidden_nodes, input_dim=vocablen, kernel_regularizer=l2(r)))
-      model.add(LeakyReLU(alpha=0.1))# Add an activation function of the previous (hidden) layer
-      model.add(Dense(20, activation="sigmoid",kernel_regularizer=l2(r)))
+        model.add(Dense(hidden_nodes, input_dim=vocablen, kernel_regularizer=l2(r)))
+        model.add(LeakyReLU(alpha=0.1))# Add an activation function of the previous (hidden) layer
+        model.add(Dense(20, activation="sigmoid",kernel_regularizer=l2(r)))
+        
+        #Define early stopping callback
+        es = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3)
+        # Optimizers to choose from for the neural network
+        sgd = optimizers.SGD(learning_rate=lr, momentum=m)
+        #adam = optimizers.Adam()
 
-      # Optimizers to choose from for the neural network
-      sgd = optimizers.SGD(learning_rate=lr, momentum=m)
-      #adam = optimizers.Adam()
+        # Compile model
+        model.compile(optimizer=sgd, loss='binary_crossentropy', metrics=["accuracy", "binary_crossentropy", "mean_squared_error"])
 
-      # Compile model
-      model.compile(optimizer=sgd, loss='binary_crossentropy', metrics=["accuracy", "binary_crossentropy", "mean_squared_error"])
+        # Fit model
+        model.fit(train_set[trn], train_label[trn], epochs=epochs_num, batch_size=bs, verbose=1, validation_data=(train_set[tst],train_label[tst]), callbacks=[es])
 
-      # Fit model
-      model.fit(train_set[trn], train_label[trn], epochs=epochs_num, batch_size=bs, verbose=1, validation_data=(train_set[tst],train_label[tst]))
+        loss_sum += model.history.history["loss"]
+        val_loss_sum += model.history.history["val_loss"]
+        acc_sum += model.history.history["accuracy"]
+        val_acc_sum += model.history.history["val_accuracy"]
+        mse_sum += model.history.history["mean_squared_error"]
+        val_mse_sum += model.history.history["val_mean_squared_error"]
 
-      loss_sum += model.history.history["loss"]
-      val_loss_sum += model.history.history["val_loss"]
-      acc_sum += model.history.history["accuracy"]
-      val_acc_sum += model.history.history["val_accuracy"]
-      mse_sum += model.history.history["mean_squared_error"]
-      val_mse_sum += model.history.history["val_mean_squared_error"]
-
-  # Create plot for every metric we ask for
-  for j in range(len(plot)):
-      # Plot loss function on training and validation sets to compare
-      plt.style.use('ggplot')
-      plt.plot(np.arange(epochs_num), arr_dict[plot[j][0]]/5, np.arange(epochs_num), arr_dict[plot[j][1]]/5)
-      plt.xlabel("epochs")
-      plt.ylabel(plot[j][0])
-      if plot[j][0] == "accuracy" or plot[j][0] == "val_accuracy":
+    # Create plot for every metric we ask for
+    for j in range(len(plot)):
+        # Plot loss function on training and validation sets to compare
+        plt.style.use('ggplot')
+        plt.plot(np.arange(epochs_num), arr_dict[plot[j][0]]/5, np.arange(epochs_num), arr_dict[plot[j][1]]/5)
+        plt.xlabel("epochs")
+        plt.ylabel(plot[j][0])
+        if plot[j][0] == "accuracy" or plot[j][0] == "val_accuracy":
             plt.legend(["Train", "Validation"], loc ="lower right")
-      else:
+        else:
             plt.legend(["Train", "Validation"], loc ="upper right")
-      if hidden_nodes == classnum:
-          plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden20/"+plot[j][0]+".png")
+        if hidden_nodes == classnum:
+            plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden20/"+plot[j][0]+".png")
       
-      if hidden_nodes == (vocablen+classnum)/2:
-          plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden4270/"+plot[j][0]+".png")
+        if hidden_nodes == (vocablen+classnum)/2:
+            plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden4270/"+plot[j][0]+".png")
       
-      if hidden_nodes == vocablen:
-          plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden8520/"+plot[j][0]+".png")
+        if hidden_nodes == vocablen:
+            plt.savefig("/content/drive/MyDrive/Υπολογιστική Νοημοσύνη/1η εργασία/hidden8520/"+plot[j][0]+".png")
 
-      plt.show()
+        plt.show()
 
-  print(model.evaluate(train_set[tst], train_label[tst], verbose=1)) # Evaluation with the test part of each fold
-  print(model.evaluate(test_set, test_label, verbose=1)) # Evaluation with the given test set
+    print(model.evaluate(train_set[tst], train_label[tst], verbose=1)) # Evaluation with the test part of each fold
+    print(model.evaluate(test_set, test_label, verbose=1)) # Evaluation with the given test set
 
-  return arr_dict
+    return arr_dict
 
 # Call fit_test for 3 different hidden layer nodes number and plot every metric for each of them through epochs
 small_hidden_metrics = fit_test(hidden_nodes=classnum, lr=0.1, epochs_num=200, plot=[("loss","val_loss"),("accuracy", "val_accuracy"), ("mean_squared_error", "val_mean_squared_error")])
@@ -324,6 +326,9 @@ def fit_test_sec(hidden_nodes=vocablen, second_hidden_nodes=vocablen, lr=0.001, 
         # Output layer
         model.add(Dense(20, activation="sigmoid"))
 
+        #Define early stopping callback
+        es = tf.keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3)
+
         # Optimizers to choose from for the neural network
         sgd = optimizers.SGD(learning_rate=lr, momentum=m)
         #adam = optimizers.Adam()
@@ -332,7 +337,7 @@ def fit_test_sec(hidden_nodes=vocablen, second_hidden_nodes=vocablen, lr=0.001, 
         model.compile(optimizer=sgd, loss='binary_crossentropy', metrics=["accuracy", "binary_crossentropy", "mean_squared_error"])
 
         # Fit model
-        model.fit(train_set[trn], train_label[trn], epochs=epochs_num, batch_size=bs, verbose=1, validation_data=(train_set[tst],train_label[tst]))
+        model.fit(train_set[trn], train_label[trn], epochs=epochs_num, batch_size=bs, verbose=1, validation_data=(train_set[tst],train_label[tst]), callbacks=[es])
 
         # Add new values of metrics to sums
         loss_sum += model.history.history["loss"]
